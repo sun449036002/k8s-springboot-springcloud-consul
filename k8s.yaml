@@ -87,9 +87,7 @@ spec:
           ports:
             - containerPort: 8080
 ---
-
 # shop-mysql
----
 apiVersion: v1
 kind: Service
 metadata:
