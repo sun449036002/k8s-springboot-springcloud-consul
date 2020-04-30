@@ -1,0 +1,98 @@
+version: '3'
+services:
+  # 指定服务名称
+  shop-mysql:
+    # 指定服务使用的镜像
+    image: mysql:5.7
+    # 指定容器名称
+    container_name: shop-mysql
+    # 指定服务运行的端口
+    ports:
+      - 3308:3306
+    # 指定容器中需要挂载的文件
+    volumes:
+      - ./mydata/mysql/log:/var/log/mysql
+      - ./mydata/mysql/data:/var/lib/mysql
+      - ./mydata/mysql/conf:/etc/mysql
+    # 指定容器的环境变量
+    environment:
+      - MYSQL_ROOT_PASSWORD=123456
+  # 指定服务名称
+  shop-api:
+    # 指定服务使用的镜像
+    # image: shop-api
+    # image: 192.168.10.240:8050/sym/shop-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # 指定容器名称
+    container_name: shop-api
+    # 指定服务运行的端口
+    ports:
+      - 8080:8080
+    # 指定容器中需要挂载的文件
+    # volumes:
+    #   - ./etc/localtime:/etc/localtime
+    #   - ./mydata/app/shop-api/logs:/var/logs
+    links:
+      - shop-mysql
+      - consul4
+    depends_on:
+      - shop-mysql
+      - shop-redis
+      - consul4
+
+  shop-user-center:
+    # 指定服务使用的镜像
+    # image: shop-api
+    # image: 192.168.10.240:8050/sym/shop-api
+    build:
+      context: .
+      dockerfile: Dockerfile4UserCenter
+    # 指定容器名称
+    container_name: shop-user-center
+    # 指定服务运行的端口
+    ports:
+      - 8081:9001
+    links:
+      - shop-mysql
+      - consul4
+    depends_on:
+      - shop-mysql
+      - shop-redis
+      - consul4
+
+  # redis
+  shop-redis:
+    image: redis
+    container_name: shop-redis
+    command: redis-server --requirepass 123456
+    ports:
+      - 6379:6379
+
+  # consul 服务注册与发现
+  consul1:
+    image: consul
+    container_name: node1
+    command: agent -server -bootstrap-expect=3 -node=node1 -bind=0.0.0.0 -client=0.0.0.0 -datacenter=dc1
+  consul2:
+    image: consul
+    container_name: node2
+    command: agent -server -retry-join=node1 -node=node2 -bind=0.0.0.0 -client=0.0.0.0 -datacenter=dc1
+    depends_on:
+      - consul1
+  consul3:
+    image: consul
+    container_name: node3
+    command: agent -server -retry-join=node1 -node=node3 -bind=0.0.0.0 -client=0.0.0.0 -datacenter=dc1
+    depends_on:
+      - consul1
+  consul4:
+    image: consul
+    container_name: node4
+    command: agent -retry-join=node1 -node=ndoe4 -bind=0.0.0.0 -client=0.0.0.0 -datacenter=dc1 -ui
+    ports:
+      - 8500:8500
+    depends_on:
+      - consul2
+      - consul3

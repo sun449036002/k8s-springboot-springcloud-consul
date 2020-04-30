@@ -1,0 +1,254 @@
+# user-api
+# 先往redis插入一条数据code对应的openid oIBgo45C6N1kW8u2ZF1
+# 通过 post 请求updateuserinfo接口存入redis
+# 测试接口:http://127.0.0.1:31234/user/detail?token=985a110e0729288402fdbbf1ea106b6b
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-api
+  labels:
+    app: user-api
+    service: user-api
+spec:
+  type: NodePort
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 31234
+    name: http
+  selector:
+    app: user-api
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-api
+  labels:
+    app: user-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-api
+  template:
+    metadata:
+      labels:
+        app: user-api
+    spec:
+      imagePullSecrets:
+        - name: regsecret
+      containers:
+        - name: user-api
+          image: 192.168.10.240:8050/sym/shop-api
+          ports:
+            - containerPort: 8080
+---
+# user-center
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-center
+  labels:
+    app: user-center
+    service: user-center
+spec:
+  type: NodePort
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 31237
+    name: http
+  selector:
+    app: user-center
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-center
+  labels:
+    app: user-center
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: user-center
+  template:
+    metadata:
+      labels:
+        app: user-center
+    spec:
+      imagePullSecrets:
+        - name: regsecret
+      containers:
+        - name: user-center
+          # image: 192.168.10.240:8050/sym/shop-user-center
+          image: shop-user-center
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+---
+
+# shop-mysql
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shop-mysql
+  labels:
+    app: shop-mysql
+spec:
+  type: NodePort
+  ports:
+  - port: 3306
+    targetPort: 3306
+    nodePort: 31233
+    name: tcp
+  selector:
+    app: shop-mysql
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shop-mysql
+  labels:
+    app: shop-mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shop-mysql
+  template:
+    metadata:
+      labels:
+        app: shop-mysql
+    spec:
+      containers:
+        - name: shop-mysql
+          image: mysql:5.7
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: "123456"
+          volumeMounts:
+            - name: mysql-data
+              subPathExpr: conf
+              mountPath: /etc/mysql
+            - name: mysql-data-2
+              subPathExpr: data
+              mountPath: /var/lib/mysql
+      volumes:
+        - name: mysql-data
+          nfs:
+            server: 192.168.10.240
+            path: "/es"
+        - name: mysql-data-2
+          hostPath:
+            path: /d/JavaProjects/we-shop-cloud/docker/mydata/mysql
+---
+# shop redis
+apiVersion: v1
+kind: Service
+metadata:
+  name: shop-redis
+  labels:
+    app: shop-redis
+spec:
+  type: NodePort
+  ports:
+  - port: 6379
+    targetPort: 6379
+    nodePort: 31238
+    name: tcp
+  selector:
+    app: shop-redis
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shop-redis
+  labels:
+    app: shop-redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shop-redis
+  template:
+    metadata:
+      labels:
+        app: shop-redis
+    spec:
+      containers:
+        - name: shop-redis
+          image: redis
+          command:
+            - "redis-server"
+            - "--requirepass"
+            - "123456"
+          imagePullPolicy: IfNotPresent
+---
+# consul server 服务注册发现
+apiVersion: v1
+kind: Service
+metadata:
+  name: consul-server
+  labels:
+    app: consul-server
+spec:
+  type: NodePort
+  ports:
+  - port: 8500
+    targetPort: 8500
+    nodePort: 31235
+    name: tcp
+  selector:
+    app: consul-server
+---    
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: consul-server
+  labels:
+    app: consul-server    
+spec:
+  serviceName: consul-server
+  replicas: 3
+  selector:
+    matchLabels:
+      app: consul-server
+  template:
+    metadata:
+      name: consul-server
+      labels:
+        app: consul-server
+    spec:
+      containers:
+        - name: consul-server
+          image: consul
+          imagePullPolicy: IfNotPresent
+          # command: "agent -server -bootstrap-expect=3 -node=consul-server-0 -bind=0.0.0.0 -client=0.0.0.0 -datacenter=dc1"
+          args:
+           - "agent"
+           - "-server"
+           - "-bootstrap-expect=3"
+           - "-ui"
+           - "-data-dir=/consul/data"
+           - "-bind=0.0.0.0"
+           - "-client=0.0.0.0"
+           - "-advertise=$(PODIP)"
+           - "-retry-join=consul-server-0.consul-server.$(NAMESPACE).svc.cluster.local"
+           - "-retry-join=consul-server-1.consul-server.$(NAMESPACE).svc.cluster.local"
+           - "-retry-join=consul-server-2.consul-server.$(NAMESPACE).svc.cluster.local"
+           - "-domain=cluster.local"
+           - "-disable-host-node-id"
+          env:
+            - name: PODIP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace

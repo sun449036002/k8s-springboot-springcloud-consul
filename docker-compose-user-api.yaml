@@ -1,0 +1,22 @@
+version: '3'
+services:
+  # 指定服务名称
+  shop-api:
+    # 指定服务使用的镜像
+    # image: shop-api
+    # image: 192.168.10.240:8050/sym/shop-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # 指定容器名称
+    container_name: shop-api
+    # 指定服务运行的端口
+    ports:
+      - 8080:8080
+    # 指定容器中需要挂载的文件
+    # volumes:
+    #   - ./etc/localtime:/etc/localtime
+    #   - ./mydata/app/shop-api/logs:/var/logs
+    external_links:
+      - shop-mysql
+      - consul4
