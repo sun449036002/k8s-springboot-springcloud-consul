@@ -85,7 +85,7 @@ kubectl logs pod/user-api-55f444446c-mmlf6
 ```
 ![image.png](https://upload-images.jianshu.io/upload_images/3512735-b69eafaf3da982c5.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
 
-当查看 pod/user-center-xxxxx的log日志时，发现shop数据库没有创建时，可通过mysql目录连接到mysql，导入sql.sql中的数据，
+当查看 pod/user-center-xxxxx的log日志时，发现shop数据库没有创建时，可通过mysql目录连接到mysql，导入根目录中的sql.sql中的数据，
 ```sh
 # 连接数据的信息
 host: 127.0.0.1

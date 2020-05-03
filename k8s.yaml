@@ -87,7 +87,9 @@ spec:
           ports:
             - containerPort: 8080
 ---
+
 # shop-mysql
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -119,7 +121,7 @@ spec:
     metadata:
       labels:
         app: shop-mysql
-    spec:
+    spec:      
       containers:
         - name: shop-mysql
           image: mysql:5.7
@@ -129,21 +131,32 @@ spec:
           env:
             - name: MYSQL_ROOT_PASSWORD
               value: "123456"
+            - name: MYSQL_DATABASE
+              value: "shop"
+          # command: ["/bin/bash"]
+          # args: ["-c", "chmod +x /etc/mysql/init.sh;/etc/mysql/init.sh"]
+            # - "chmod"
+            # - "+x"
+            # - "/etc/mysql/init.sh"
+            # - "/etc/mysql/init.sh"
           volumeMounts:
             - name: mysql-data
               subPathExpr: conf
               mountPath: /etc/mysql
-            - name: mysql-data-2
-              subPathExpr: data
-              mountPath: /var/lib/mysql
+            - name: mysql-data
+              subPathExpr: docker-entrypoint-initdb.d
+              mountPath: /docker-entrypoint-initdb.d
+            # - name: mysql-data-2
+            #   subPathExpr: data
+            #   mountPath: /var/lib/mysql
       volumes:
         - name: mysql-data
           nfs:
             server: 192.168.10.240
             path: "/es"
-        - name: mysql-data-2
-          hostPath:
-            path: /d/JavaProjects/we-shop-cloud/docker/mydata/mysql
+        # - name: mysql-data-2
+        #   hostPath:
+        #     path: /d/JavaProjects/we-shop-cloud/docker/mydata/mysql
 ---
 # shop redis
 apiVersion: v1
